@@ -11,6 +11,29 @@ const eventRegistrationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  email: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  phone: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  organization: {
+    type: String,
+    trim: true
+  },
+  requirements: {
+    type: String,
+    trim: true
+  },
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'cancelled'],

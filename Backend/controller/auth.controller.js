@@ -120,9 +120,50 @@ const getCurrentUser = async (req, res) => {
     }
 };
 
+const updateProfile = async (req, res) => {
+    try {
+        const { name, email, phone, organization } = req.body;
+        const userId = req.user._id;
+
+        // Find user by ID
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update user fields
+        user.name = name || user.name;
+        user.email = email || user.email;
+        user.phone = phone || user.phone;
+        user.organization = organization || user.organization;
+
+        // Save updated user
+        await user.save();
+
+        // Return updated user data (excluding sensitive information)
+        const updatedUser = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            organization: user.organization,
+            role: user.role
+        };
+
+        res.status(200).json({
+            message: 'Profile updated successfully',
+            data: updatedUser
+        });
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        res.status(500).json({ message: 'Failed to update profile' });
+    }
+};
+
 module.exports = {
     register,
     login,
     logout,
-    getCurrentUser
+    getCurrentUser,
+    updateProfile
 }; 

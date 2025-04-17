@@ -18,6 +18,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import RequestClub from "./pages/RequestClub";
 import Clubs from "./pages/Clubs";
+import MyEvents from "./pages/MyEvents";
 
 // Protected Route component
 const ProtectedRoute = ({ children, roles }) => {
@@ -72,6 +73,14 @@ function App() {
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="request-club" element={<RequestClub />} />
+            <Route
+              path="my-events"
+              element={
+                <ProtectedRoute>
+                  <MyEvents />
+                </ProtectedRoute>
+              }
+            />
           </Route>
         </Routes>
         <Toaster position="top-right" />

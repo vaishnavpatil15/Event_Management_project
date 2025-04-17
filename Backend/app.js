@@ -22,6 +22,14 @@ app.use(express.urlencoded({ extended: true }));
 const authRoutes = require("./routes/auth.routes");
 app.use("/api/auth", authRoutes);
 
+// Event Registration Routes
+const eventRegistrationRoutes = require("./routes/eventRegistration.routes");
+app.use("/api/event-registrations", eventRegistrationRoutes);
+
+// Event Routes
+const eventRoutes = require('./routes/event.routes');
+app.use('/api/events', eventRoutes);
+
 // Remove duplicate user routes since we're using auth routes
 // const userRouter = require("./routes/user.routes");
 // app.use("/user", userRouter);

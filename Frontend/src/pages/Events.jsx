@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
+import axios from "axios";
 
 const Events = () => {
   const { user } = useAuth();
@@ -17,39 +18,8 @@ const Events = () => {
 
   const fetchEvents = async () => {
     try {
-      // Simulated API call
-      const mockEvents = [
-        {
-          id: 1,
-          title: "Annual Sports Meet",
-          date: "2024-04-15",
-          time: "09:00",
-          location: "Main Sports Complex",
-          maxParticipants: 200,
-          currentParticipants: 150,
-          registrationFee: 50,
-          description:
-            "Annual sports competition featuring various athletic events",
-          category: "Sports",
-          organizer: "Sports Department",
-          requirements: "Sports attire, registration form",
-        },
-        {
-          id: 2,
-          title: "Chess Tournament",
-          date: "2024-04-20",
-          time: "14:00",
-          location: "Student Center",
-          maxParticipants: 50,
-          currentParticipants: 30,
-          registrationFee: 20,
-          description: "Inter-department chess championship",
-          category: "Games",
-          organizer: "Chess Club",
-          requirements: "Basic chess knowledge",
-        },
-      ];
-      setEvents(mockEvents);
+      const response = await axios.get('/events');
+      setEvents(response.data.data);
     } catch (error) {
       toast.error("Failed to fetch events");
       console.error("Error fetching events:", error);
@@ -123,7 +93,7 @@ const Events = () => {
     try {
       setEvents((prevEvents) =>
         prevEvents.map((event) =>
-          event.id === editingEvent.id ? editingEvent : event
+          event._id === editingEvent._id ? editingEvent : event
         )
       );
       setShowEditModal(false);
@@ -146,7 +116,7 @@ const Events = () => {
     if (window.confirm("Are you sure you want to delete this event?")) {
       try {
         setEvents((prevEvents) =>
-          prevEvents.filter((event) => event.id !== eventId)
+          prevEvents.filter((event) => event._id !== eventId)
         );
         toast.success("Event deleted successfully");
       } catch (error) {
@@ -222,7 +192,7 @@ const Events = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {events.map((event) => (
-                <tr key={event.id}>
+                <tr key={event._id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       {event.title}
@@ -244,7 +214,7 @@ const Events = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {event.currentParticipants}/{event.maxParticipants}
+                      {event.currentParticipants || 0}/{event.maxParticipants}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -261,7 +231,7 @@ const Events = () => {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(event.id)}
+                        onClick={() => handleDelete(event._id)}
                         className="text-red-600 hover:text-red-900"
                       >
                         Delete

@@ -1,7 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, MapPin, Users } from "lucide-react";
+import axios from "axios";
+import { toast } from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [registrationData, setRegistrationData] = useState({
@@ -11,66 +18,23 @@ const Home = () => {
     organization: "",
     requirements: "",
   });
+  const [isLoading, setIsLoading] = useState(true);
 
-  const featuredEvents = [
-    {
-      id: 1,
-      title: "Tech Conference 2024",
-      date: "2024-05-15",
-      location: "New York City",
-      attendees: 500,
-      image:
-        "https://images.unsplash.com/photo-1540575467063-178a50c2df87?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
-      description:
-        "Join us for the biggest tech conference of the year featuring industry leaders and innovative discussions.",
-      category: "Technology",
-      maxParticipants: 600,
-      currentParticipants: 500,
-      registrationDeadline: "2024-05-01",
-      requirements: "Laptop, conference pass",
-      time: "09:00 AM - 05:00 PM",
-      venue: "New York Convention Center",
-      organizer: "Tech Events Inc.",
-    },
-    {
-      id: 2,
-      title: "Music Festival",
-      date: "2024-06-20",
-      location: "Los Angeles",
-      attendees: 1000,
-      image:
-        "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
-      description:
-        "Experience three days of amazing music performances from top artists around the world.",
-      category: "Music",
-      maxParticipants: 1200,
-      currentParticipants: 1000,
-      registrationDeadline: "2024-06-10",
-      requirements: "Festival pass, comfortable clothing",
-      time: "12:00 PM - 11:00 PM",
-      venue: "LA Music Park",
-      organizer: "Music Festivals Co.",
-    },
-    {
-      id: 3,
-      title: "Business Summit",
-      date: "2024-07-10",
-      location: "Chicago",
-      attendees: 300,
-      image:
-        "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
-      description:
-        "Network with industry leaders and learn about the latest business trends and strategies.",
-      category: "Business",
-      maxParticipants: 400,
-      currentParticipants: 300,
-      registrationDeadline: "2024-07-01",
-      requirements: "Business attire, business cards",
-      time: "08:00 AM - 06:00 PM",
-      venue: "Chicago Business Center",
-      organizer: "Business Leaders Association",
-    },
-  ];
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      const response = await axios.get('/events');
+      setEvents(response.data.data);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      toast.error('Failed to fetch events');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleViewDetails = (event) => {
     setSelectedEvent(event);
@@ -103,18 +67,50 @@ const Home = () => {
     }));
   };
 
-  const handleSubmitRegistration = (e) => {
+  const handleSubmitRegistration = async (e) => {
     e.preventDefault();
-    // Here you would typically send the registration data to your backend
-    console.log("Registration submitted:", {
-      eventId: selectedEvent.id,
-      ...registrationData,
-    });
-    // Show success message
-    alert("Registration submitted successfully!");
-    handleCloseRegistration();
-    handleCloseDetails();
+    try {
+      if (!user) {
+        toast.error('Please login to register for events');
+        return;
+      }
+
+      // Validate required fields
+      if (!registrationData.name || !registrationData.email || !registrationData.phone) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+
+      const response = await axios.post('/event-registrations/register', {
+        eventId: selectedEvent._id,
+        userId: user._id,
+        name: registrationData.name,
+        email: registrationData.email,
+        phone: registrationData.phone,
+        organization: registrationData.organization || '',
+        requirements: registrationData.requirements || ''
+      });
+
+      if (response.data.success) {
+        toast.success('Registration submitted successfully!');
+        handleCloseRegistration();
+        handleCloseDetails();
+        // Refresh events to update participant count
+        fetchEvents();
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast.error(error.response?.data?.message || 'Failed to submit registration');
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -129,7 +125,10 @@ const Home = () => {
           <div className="text-center text-white space-y-4">
             <h1 className="text-5xl font-bold">Welcome to Event Manager</h1>
             <p className="text-xl">Discover and manage amazing events</p>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg font-semibold transition-colors">
+            <button 
+              onClick={() => navigate('/events')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg font-semibold transition-colors"
+            >
               Explore Events
             </button>
           </div>
@@ -140,13 +139,13 @@ const Home = () => {
       <div className="space-y-4">
         <h2 className="text-3xl font-bold">Featured Events</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredEvents.map((event) => (
+          {events.map((event) => (
             <div
-              key={event.id}
+              key={event._id}
               className="bg-white rounded-xl shadow-md overflow-hidden"
             >
               <img
-                src={event.image}
+                src={event.image || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"}
                 alt={event.title}
                 className="w-full h-48 object-cover"
               />
@@ -162,7 +161,7 @@ const Home = () => {
                 </div>
                 <div className="flex items-center text-gray-600">
                   <Users className="w-4 h-4 mr-2" />
-                  <span>{event.attendees} attendees</span>
+                  <span>{event.currentParticipants} / {event.maxParticipants} attendees</span>
                 </div>
                 <button
                   onClick={() => handleViewDetails(event)}
@@ -191,72 +190,55 @@ const Home = () => {
             </div>
             <div className="space-y-4">
               <img
-                src={selectedEvent.image}
+                src={selectedEvent.image || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"}
                 alt={selectedEvent.title}
                 className="w-full h-64 object-cover rounded-lg"
               />
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Organizer
-                  </h3>
+                  <h3 className="text-sm font-medium text-gray-500">Organizer</h3>
                   <p className="mt-1">{selectedEvent.organizer}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Category
-                  </h3>
+                  <h3 className="text-sm font-medium text-gray-500">Category</h3>
                   <p className="mt-1">{selectedEvent.category}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Date & Time
-                  </h3>
+                  <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
                   <p className="mt-1">
                     {new Date(selectedEvent.date).toLocaleDateString()} at{" "}
                     {selectedEvent.time}
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">Venue</h3>
-                  <p className="mt-1">{selectedEvent.venue}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Location
-                  </h3>
+                  <h3 className="text-sm font-medium text-gray-500">Location</h3>
                   <p className="mt-1">{selectedEvent.location}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Registration
-                  </h3>
+                  <h3 className="text-sm font-medium text-gray-500">Registration</h3>
                   <p className="mt-1">
-                    {selectedEvent.currentParticipants} /{" "}
-                    {selectedEvent.maxParticipants} participants
+                    {selectedEvent.currentParticipants} / {selectedEvent.maxParticipants} participants
                   </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Registration Fee</h3>
+                  <p className="mt-1">${selectedEvent.registrationFee}</p>
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-gray-500">
-                  Description
-                </h3>
+                <h3 className="text-sm font-medium text-gray-500">Description</h3>
                 <p className="mt-1">{selectedEvent.description}</p>
               </div>
+              {selectedEvent.requirements && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Requirements</h3>
+                  <p className="mt-1">{selectedEvent.requirements}</p>
+                </div>
+              )}
               <div>
-                <h3 className="text-sm font-medium text-gray-500">
-                  Requirements
-                </h3>
-                <p className="mt-1">{selectedEvent.requirements}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">
-                  Registration Deadline
-                </h3>
+                <h3 className="text-sm font-medium text-gray-500">Registration Deadline</h3>
                 <p className="mt-1">
-                  {new Date(
-                    selectedEvent.registrationDeadline
-                  ).toLocaleDateString()}
+                  {new Date(selectedEvent.registrationDeadline).toLocaleDateString()}
                 </p>
               </div>
               <div className="flex justify-end mt-4">
