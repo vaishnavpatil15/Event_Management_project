@@ -19,6 +19,7 @@ import Register from "./pages/Register";
 import RequestClub from "./pages/RequestClub";
 import Clubs from "./pages/Clubs";
 import MyEvents from "./pages/MyEvents";
+import UsersManagement from "./pages/UsersManagement";
 
 // Protected Route component
 const ProtectedRoute = ({ children, roles }) => {
@@ -46,7 +47,7 @@ function App() {
             <Route
               path="events/create"
               element={
-                <ProtectedRoute roles={["admin", "superadmin"]}>
+                <ProtectedRoute roles={["clubadmin"]}>
                   <CreateEvent />
                 </ProtectedRoute>
               }
@@ -54,7 +55,7 @@ function App() {
             <Route
               path="clubs"
               element={
-                <ProtectedRoute roles={["admin", "superadmin"]}>
+                <ProtectedRoute roles={["clubadmin", "superadmin"]}>
                   <Clubs />
                 </ProtectedRoute>
               }
@@ -62,12 +63,27 @@ function App() {
             <Route
               path="dashboard"
               element={
-                <ProtectedRoute roles={["admin", "superadmin"]}>
+                <ProtectedRoute roles={["clubadmin", "superadmin"]}>
                   <Dashboard />
                 </ProtectedRoute>
               }
             />
-            <Route path="profile" element={<Profile />} />
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute roles={["superadmin"]}>
+                  <UsersManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
             <Route path="contact" element={<Contact />} />
             <Route path="help" element={<Help />} />
             <Route path="login" element={<Login />} />

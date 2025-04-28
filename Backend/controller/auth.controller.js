@@ -1,25 +1,38 @@
 const User = require('../models/user.model');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { createClubAndLinkAdmin } = require('../utils/club.utils');
 
 const register = async (req, res) => {
     try {
-        console.log('Registration request received:', req.body);
-        
         const { name, email, password, phone, organization, role } = req.body;
 
         // Validate required fields
         if (!name || !email || !password) {
             return res.status(400).json({ 
+                success: false,
                 message: 'Missing required fields',
                 required: ['name', 'email', 'password']
+            });
+        }
+
+        // Validate role
+        const validRoles = ['user', 'clubadmin', 'superadmin'];
+        if (role && !validRoles.includes(role)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid role specified',
+                validRoles: validRoles
             });
         }
 
         // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ message: 'User already exists' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'User already exists' 
+            });
         }
 
         // Create new user
@@ -32,35 +45,105 @@ const register = async (req, res) => {
             role: role || 'user'
         });
 
+        // Save the user first to get their ID
         await user.save();
-        console.log('User created successfully:', user._id);
+
+        // If user is a clubadmin, create a club
+        if (role === 'clubadmin') {
+            if (!organization) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Organization name is required for club admins'
+                });
+            }
+
+            try {
+                // Create club data
+                const clubData = {
+                    name: organization,
+                    description: `${organization} club`,
+                    category: 'general',
+                    email: email,
+                    password: password,
+                    status: 'active'
+                };
+
+                // Create club and link admin
+                await createClubAndLinkAdmin(clubData, user._id);
+                
+                // Get updated user with clubId
+                const updatedUser = await User.findById(user._id)
+                    .select('-password')
+                    .populate('clubId', 'name');
+                
+                if (!updatedUser.clubId) {
+                    throw new Error('Failed to link club to admin');
+                }
+
+                // Generate token
+                const token = jwt.sign({ id: user._id }, process.env.JWT_KEY, {
+                    expiresIn: '7d'
+                });
+
+                // Set cookie
+                res.cookie('token', token, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+                });
+
+                // Send success response
+                return res.status(201).json({
+                    success: true,
+                    message: 'User registered successfully',
+                    data: {
+                        user: updatedUser,
+                        token
+                    }
+                });
+            } catch (error) {
+                console.error('Club creation error:', error);
+                // Delete the user if club creation failed
+                await User.findByIdAndDelete(user._id);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to create club for admin',
+                    error: error.message
+                });
+            }
+        }
 
         // Generate token
         const token = jwt.sign({ id: user._id }, process.env.JWT_KEY, {
             expiresIn: '7d'
         });
 
+        // Set cookie
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
 
-        res.status(201).json({
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            },
-            token
+        // Get updated user with clubId
+        const updatedUser = await User.findById(user._id).select('-password');
+
+        // Send success response
+        return res.status(201).json({
+            success: true,
+            message: 'User registered successfully',
+            data: {
+                user: updatedUser,
+                token
+            }
         });
+
     } catch (error) {
         console.error('Registration error:', error);
-        res.status(500).json({ 
-            message: 'Error creating user', 
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        return res.status(500).json({
+            success: false,
+            message: 'Error during registration',
+            error: error.message
         });
     }
 };
@@ -72,13 +155,19 @@ const login = async (req, res) => {
         // Find user
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+            return res.status(401).json({ 
+                success: false,
+                message: 'Invalid credentials' 
+            });
         }
 
         // Check password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+            return res.status(401).json({ 
+                success: false,
+                message: 'Invalid credentials' 
+            });
         }
 
         // Generate token
@@ -86,37 +175,57 @@ const login = async (req, res) => {
             expiresIn: '7d'
         });
 
+        // Set cookie
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
         res.json({
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            },
-            token
+            success: true,
+            data: {
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                },
+                token
+            }
         });
     } catch (error) {
-        res.status(500).json({ message: 'Error logging in', error: error.message });
+        console.error('Login error:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error logging in', 
+            error: error.message 
+        });
     }
 };
 
 const logout = (req, res) => {
     res.clearCookie('token');
-    res.json({ message: 'Logged out successfully' });
+    res.json({ 
+        success: true,
+        message: 'Logged out successfully' 
+    });
 };
 
 const getCurrentUser = async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
-        res.json(user);
+        res.json({
+            success: true,
+            data: user
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching user', error: error.message });
+        console.error('Get current user error:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error fetching user', 
+            error: error.message 
+        });
     }
 };
 

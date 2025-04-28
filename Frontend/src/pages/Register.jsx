@@ -15,7 +15,7 @@ const Register = () => {
     password: "",
     phone: "",
     organization: "",
-    role: "user", // user, admin, superadmin
+    role: "user", // user, clubadmin, superadmin
   });
 
   const handleSubmit = async (e) => {
@@ -23,11 +23,23 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      await register(formData);
-      toast.success("Registration successful! Please login.");
-      navigate("/login");
+      // Validate required fields
+      if (!formData.name || !formData.email || !formData.password) {
+        toast.error("Please fill in all required fields");
+        return;
+      }
+
+      const response = await register(formData);
+      
+      if (response.success) {
+        toast.success("Registration successful! Please login.");
+        navigate("/login");
+      } else {
+        toast.error(response.message || "Registration failed");
+      }
     } catch (error) {
-      toast.error(error.message || "Registration failed");
+      console.error('Registration error:', error);
+      toast.error(error.message || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +206,7 @@ const Register = () => {
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="user">User</option>
-              <option value="admin">Club Admin</option>
+              <option value="clubadmin">Club Admin</option>
             </select>
           </div>
 

@@ -20,19 +20,18 @@ app.use(express.urlencoded({ extended: true }));
 
 // API Routes
 const authRoutes = require("./routes/auth.routes");
-app.use("/api/auth", authRoutes);
-
-// Event Registration Routes
+const userRoutes = require('./routes/user.routes');
+const clubRoutes = require('./routes/club.routes');
 const eventRegistrationRoutes = require("./routes/eventRegistration.routes");
-app.use("/api/event-registrations", eventRegistrationRoutes);
-
-// Event Routes
 const eventRoutes = require('./routes/event.routes');
-app.use('/api/events', eventRoutes);
+const superadminRoutes = require('./routes/superadminRoutes');
 
-// Remove duplicate user routes since we're using auth routes
-// const userRouter = require("./routes/user.routes");
-// app.use("/user", userRouter);
+// Mount routes
+app.use("/api/auth", authRoutes);
+app.use("/api/event-registrations", eventRegistrationRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/superadmin', superadminRoutes);
+app.use('/api/clubs', clubRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -33,10 +33,15 @@ const MainLayout = () => {
   const menuItems = [
     { path: "/", icon: Home, label: "Home" },
     { path: "/events", icon: Calendar, label: "Events" },
-    ...(user?.role === "admin" || user?.role === "superadmin"
+    ...(user?.role === "clubadmin" || user?.role === "superadmin"
       ? [
         { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
         { path: "/clubs", icon: Users, label: "Clubs" },
+      ]
+      : []),
+    ...(user?.role === "superadmin"
+      ? [
+        { path: "/users", icon: Users, label: "Users Management" },
       ]
       : []),
     { path: "/profile", icon: User, label: "Profile" },
